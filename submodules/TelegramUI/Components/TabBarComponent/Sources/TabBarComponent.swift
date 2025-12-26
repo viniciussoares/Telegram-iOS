@@ -188,18 +188,22 @@ public final class TabBarComponent: Component {
         }
 
         private func captureBackground() -> (UIImage?, CGRect)? {
-            guard let sourceView = backgroundSourceView,
-                  let window = window else {
+            guard let window = window else {
                 return (cachedBackgroundImage, bounds)
             }
-
-            let frameInWindow = convert(bounds, to: window)
+            let sourceView = backgroundSourceView ?? window
 
             let wasHidden = isHidden
             isHidden = true
 
             let format = UIGraphicsImageRendererFormat()
-            format.scale = window.screen.scale
+            let scale: CGFloat
+            if let sourceWindow = sourceView as? UIWindow {
+                scale = sourceWindow.screen.scale
+            } else {
+                scale = sourceView.window?.screen.scale ?? window.screen.scale
+            }
+            format.scale = scale
             let renderer = UIGraphicsImageRenderer(bounds: sourceView.bounds, format: format)
             let image = renderer.image { _ in
                 sourceView.drawHierarchy(in: sourceView.bounds, afterScreenUpdates: false)
@@ -208,7 +212,15 @@ public final class TabBarComponent: Component {
             isHidden = wasHidden
             cachedBackgroundImage = image
 
-            return (image, frameInWindow)
+            let frameInSource = sourceView.convert(self.liquidGlassView.bounds, from: self.liquidGlassView)
+            let alignedFrame = CGRect(
+                x: floor(frameInSource.origin.x * scale) / scale,
+                y: floor(frameInSource.origin.y * scale) / scale,
+                width: floor(frameInSource.size.width * scale) / scale,
+                height: floor(frameInSource.size.height * scale) / scale
+            )
+
+            return (image, alignedFrame)
         }
 
         public override init(frame: CGRect) {
@@ -225,6 +237,8 @@ public final class TabBarComponent: Component {
             )
             self.liquidGlassView.layer.cornerRadius = 32
             self.liquidGlassView.layer.cornerCurve = .continuous
+            self.liquidGlassView.frostIntensity = 0
+            self.liquidGlassView.maxEdgeBlur = 0
 
             if #available(iOS 17.0, *) {
                 self.traitOverrides.verticalSizeClass = .compact

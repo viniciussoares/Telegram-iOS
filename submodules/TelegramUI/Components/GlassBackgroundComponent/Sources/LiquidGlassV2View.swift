@@ -103,21 +103,17 @@ class LiquidGlassV2MetalLayer: CAMetalLayer {
                                          length: vertices.count * MemoryLayout<Float>.stride,
                                          options: [])
 
-        let library: MTLLibrary?
-        #if os(iOS)
         let mainBundle = Bundle(for: LiquidGlassV2View.self)
-        if let path = mainBundle.path(forResource: "GlassBackgroundComponentMetalSourcesBundle", ofType: "bundle"),
-           let bundle = Bundle(path: path) {
-            library = try? device.makeDefaultLibrary(bundle: bundle)
-        } else {
-            library = device.makeDefaultLibrary()
+        guard let path = mainBundle.path(forResource: "GlassBackgroundComponentBundle", ofType: "bundle") else {
+            print("Failed to find GlassBackgroundComponentBundle")
+            return
         }
-        #else
-        library = device.makeDefaultLibrary()
-        #endif
-
-        guard let library = library else {
-            print("Failed to create Metal library")
+        guard let bundle = Bundle(path: path) else {
+            print("Failed to load bundle at path: \(path)")
+            return
+        }
+        guard let library = try? device.makeDefaultLibrary(bundle: bundle) else {
+            print("Failed to create Metal library from bundle")
             return
         }
 

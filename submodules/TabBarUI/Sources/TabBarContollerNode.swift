@@ -87,7 +87,11 @@ final class TabBarControllerNode: ASDisplayNode {
                 self.view.bringSubviewToFront(tabBarView)
             }
         }
-        
+
+        if let tabBarView = self.tabBarView.view as? TabBarComponent.View {
+            tabBarView.setBackgroundSource(self.view.window ?? self.view)
+        }
+
         return { [weak self, weak previousNode] in
             if previousNode !== self?.currentControllerNode {
                 previousNode?.removeFromSupernode()
@@ -241,6 +245,9 @@ final class TabBarControllerNode: ASDisplayNode {
         if let tabBarComponentView = self.tabBarView.view {
             if tabBarComponentView.superview == nil {
                 self.view.addSubview(tabBarComponentView)
+            }
+            if let typedTabBarView = tabBarComponentView as? TabBarComponent.View {
+                typedTabBarView.setBackgroundSource(self.view.window ?? self.view)
             }
             transition.updateFrame(view: tabBarComponentView, frame: tabBarFrame)
             transition.updateAlpha(layer: tabBarComponentView.layer, alpha: params.toolbar == nil ? 1.0 : 0.0)

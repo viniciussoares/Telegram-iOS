@@ -8,20 +8,20 @@ load("//build-system/bazel-utils:plist_fragment.bzl",
 )
 
 filegroup(
-    name = "MetalSources",
+    name = "GlassBackgroundComponentMetalResources",
     srcs = glob([
-        "Sources/**/*.metal",
+        "MetalResources/**/*.*",
     ]),
     visibility = ["//visibility:public"],
 )
 
 plist_fragment(
-    name = "GlassBackgroundComponentMetalSourcesBundleInfoPlist",
+    name = "GlassBackgroundComponentBundleInfoPlist",
     extension = "plist",
     template =
     """
     <key>CFBundleIdentifier</key>
-    <string>org.telegram.GlassBackgroundComponentMetalSources</string>
+    <string>org.telegram.GlassBackgroundComponent</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleName</key>
@@ -30,12 +30,12 @@ plist_fragment(
 )
 
 apple_resource_bundle(
-    name = "GlassBackgroundComponentMetalSourcesBundle",
+    name = "GlassBackgroundComponentBundle",
     infoplists = [
-        ":GlassBackgroundComponentMetalSourcesBundleInfoPlist",
+        ":GlassBackgroundComponentBundleInfoPlist",
     ],
     resources = [
-        ":MetalSources",
+        ":GlassBackgroundComponentMetalResources",
     ],
 )
 
@@ -49,7 +49,7 @@ swift_library(
         "-warnings-as-errors",
     ],
     data = [
-        ":GlassBackgroundComponentMetalSourcesBundle",
+        ":GlassBackgroundComponentBundle",
     ],
     deps = [
         "//submodules/Display",

@@ -439,12 +439,14 @@ fragment half4 liquidGlassV2Fragment(FragmentData in [[stage_in]],
         // Blur path with SDF-based refraction
         float2 texelSize = 1.0 / float2(backgroundTexture.get_width(), backgroundTexture.get_height());
         // Correct for aspect ratio so blur is circular, not stretched horizontally
-        float2 correctedTexel = texelSize * float2(1.0, aspectRatio);
+        // Use sqrt to balance both axes - preserves blur intensity while avoiding banding
+        float aspectCorrection = sqrt(aspectRatio);
+        float2 correctedTexel = texelSize * float2(aspectCorrection, 1.0 / aspectCorrection);
         half4 accumColor = half4(0);
         half weightSum = 0;
 
         int kernelRadius = int(ceil(blurAmount * 3.0));
-        int stepSize = int(ceil(float(kernelRadius) / 1.5));
+        int stepSize = max(1, int(ceil(float(kernelRadius) / 2.5)));
         int diameter = 2 * kernelRadius + 1;
         int sampleCount = diameter * diameter;
         int centerIdx = (2 * kernelRadius + 2) * kernelRadius;
