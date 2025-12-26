@@ -165,36 +165,74 @@ public final class TabBarComponent: Component {
     }
     
     public final class View: UIView, UITabBarDelegate, UIGestureRecognizerDelegate {
-        private let liquidGlassView: LiquidGlassV2View
+        private var liquidGlassView: LiquidGlassV2View!
         private let contextGestureContainerView: ContextControllerSourceView
-        
+
         private var itemViews: [AnyHashable: ComponentView<Empty>] = [:]
         private var selectedItemViews: [AnyHashable: ComponentView<Empty>] = [:]
-        
+
         private var tabSelectionRecognizer: TabSelectionRecognizer?
         private var itemWithActiveContextGesture: AnyHashable?
-        
+
         private var component: TabBarComponent?
         private weak var state: EmptyComponentState?
 
         private var selectionGestureState: (startX: CGFloat, currentX: CGFloat)?
         private var overrideSelectedItemId: AnyHashable?
-        
+
+        private weak var backgroundSourceView: UIView?
+        private var cachedBackgroundImage: UIImage?
+
+        public func setBackgroundSource(_ view: UIView?) {
+            self.backgroundSourceView = view
+        }
+
+        private func captureBackground() -> (UIImage?, CGRect)? {
+            guard let sourceView = backgroundSourceView,
+                  let window = window else {
+                return (cachedBackgroundImage, bounds)
+            }
+
+            let frameInWindow = convert(bounds, to: window)
+
+            let wasHidden = isHidden
+            isHidden = true
+
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = window.screen.scale
+            let renderer = UIGraphicsImageRenderer(bounds: sourceView.bounds, format: format)
+            let image = renderer.image { _ in
+                sourceView.drawHierarchy(in: sourceView.bounds, afterScreenUpdates: false)
+            }
+
+            isHidden = wasHidden
+            cachedBackgroundImage = image
+
+            return (image, frameInWindow)
+        }
+
         public override init(frame: CGRect) {
-            self.liquidGlassView = LiquidGlassV2View(frame: .zero)
-            
             self.contextGestureContainerView = ContextControllerSourceView()
             self.contextGestureContainerView.isGestureEnabled = true
-            
+
             super.init(frame: frame)
-            
+
+            self.liquidGlassView = LiquidGlassV2View(
+                backgroundContentProvider: { [weak self] in
+                    self?.captureBackground()
+                },
+                frameProvider: nil
+            )
+            self.liquidGlassView.layer.cornerRadius = 32
+            self.liquidGlassView.layer.cornerCurve = .continuous
+
             if #available(iOS 17.0, *) {
                 self.traitOverrides.verticalSizeClass = .compact
                 self.traitOverrides.horizontalSizeClass = .compact
             }
-            
+
             self.addSubview(self.contextGestureContainerView)
-            
+
             self.contextGestureContainerView.addSubview(self.liquidGlassView)
             let tabSelectionRecognizer = TabSelectionRecognizer(target: self, action: #selector(self.onTabSelectionGesture(_:)))
             self.tabSelectionRecognizer = tabSelectionRecognizer
