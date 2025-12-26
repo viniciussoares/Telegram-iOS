@@ -10,7 +10,6 @@ import LottieComponent
 import UIKitRuntimeUtils
 import BundleIconComponent
 import TextBadgeComponent
-import LiquidLens
 import AppBundle
 
 private final class TabSelectionRecognizer: UIGestureRecognizer {
@@ -166,7 +165,7 @@ public final class TabBarComponent: Component {
     }
     
     public final class View: UIView, UITabBarDelegate, UIGestureRecognizerDelegate {
-        private let liquidLensView: LiquidLensView
+        private let liquidGlassView: LiquidGlassV2View
         private let contextGestureContainerView: ContextControllerSourceView
         
         private var itemViews: [AnyHashable: ComponentView<Empty>] = [:]
@@ -182,7 +181,7 @@ public final class TabBarComponent: Component {
         private var overrideSelectedItemId: AnyHashable?
         
         public override init(frame: CGRect) {
-            self.liquidLensView = LiquidLensView()
+            self.liquidGlassView = LiquidGlassV2View(frame: .zero)
             
             self.contextGestureContainerView = ContextControllerSourceView()
             self.contextGestureContainerView.isGestureEnabled = true
@@ -196,7 +195,7 @@ public final class TabBarComponent: Component {
             
             self.addSubview(self.contextGestureContainerView)
             
-            self.contextGestureContainerView.addSubview(self.liquidLensView)
+            self.contextGestureContainerView.addSubview(self.liquidGlassView)
             let tabSelectionRecognizer = TabSelectionRecognizer(target: self, action: #selector(self.onTabSelectionGesture(_:)))
             self.tabSelectionRecognizer = tabSelectionRecognizer
             self.addGestureRecognizer(tabSelectionRecognizer)
@@ -431,8 +430,8 @@ public final class TabBarComponent: Component {
                         itemComponentView.isUserInteractionEnabled = false
                         selectedItemComponentView.isUserInteractionEnabled = false
 
-                        self.liquidLensView.contentView.addSubview(itemComponentView)
-                        self.liquidLensView.selectedContentView.addSubview(selectedItemComponentView)
+                        self.liquidGlassView.contentView.addSubview(itemComponentView)
+                        self.liquidGlassView.selectedContentView.addSubview(selectedItemComponentView)
                     }
                     itemTransition.setFrame(view: itemComponentView, frame: itemFrame)
                     itemTransition.setPosition(view: selectedItemComponentView, position: itemFrame.center)
@@ -464,7 +463,7 @@ public final class TabBarComponent: Component {
 
             transition.setFrame(view: self.contextGestureContainerView, frame: CGRect(origin: CGPoint(), size: size))
 
-            transition.setFrame(view: self.liquidLensView, frame: CGRect(origin: CGPoint(), size: size))
+            transition.setFrame(view: self.liquidGlassView, frame: CGRect(origin: CGPoint(), size: size))
             
             let lensSelection: (x: CGFloat, width: CGFloat)
             if let selectionGestureState = self.selectionGestureState {
@@ -475,7 +474,7 @@ public final class TabBarComponent: Component {
                 lensSelection = (0.0, itemSize.width)
             }
 
-            self.liquidLensView.update(size: size, selectionX: lensSelection.x, selectionWidth: lensSelection.width, isDark: component.theme.overallDarkAppearance, isLifted: self.selectionGestureState != nil, transition: transition)
+            self.liquidGlassView.update(size: size, selectionX: lensSelection.x, selectionWidth: lensSelection.width, isDark: component.theme.overallDarkAppearance, isLifted: self.selectionGestureState != nil, transition: transition)
 
             return size
         }

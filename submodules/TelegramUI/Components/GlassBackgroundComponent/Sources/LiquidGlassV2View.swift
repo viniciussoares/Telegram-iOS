@@ -1,6 +1,7 @@
 import UIKit
 import MetalKit
 import QuartzCore
+import ComponentFlow
 
 class LiquidGlassV2MetalLayer: CAMetalLayer {
 
@@ -102,7 +103,20 @@ class LiquidGlassV2MetalLayer: CAMetalLayer {
                                          length: vertices.count * MemoryLayout<Float>.stride,
                                          options: [])
 
-        guard let library = device.makeDefaultLibrary() else {
+        let library: MTLLibrary?
+        #if os(iOS)
+        let mainBundle = Bundle(for: LiquidGlassV2View.self)
+        if let path = mainBundle.path(forResource: "GlassBackgroundComponentMetalSourcesBundle", ofType: "bundle"),
+           let bundle = Bundle(path: path) {
+            library = try? device.makeDefaultLibrary(bundle: bundle)
+        } else {
+            library = device.makeDefaultLibrary()
+        }
+        #else
+        library = device.makeDefaultLibrary()
+        #endif
+
+        guard let library = library else {
             print("Failed to create Metal library")
             return
         }
@@ -262,6 +276,19 @@ public class LiquidGlassV2View: UIView {
         return layer as! LiquidGlassV2MetalLayer
     }
 
+    // MARK: - Content Views (LiquidLensView compatibility)
+
+    public let contentView: UIView = UIView()
+    private let liftedContainerView: UIView = UIView()
+
+    public var selectedContentView: UIView {
+        return liftedContainerView
+    }
+
+    // Selection lens view
+    private var selectionLensView: UIView?
+    private var selectionParams: (x: CGFloat, width: CGFloat, isLifted: Bool)?
+
     public var isDarkThemeOverrided: Bool = false {
         didSet {
             updateForeground()
@@ -396,6 +423,12 @@ public class LiquidGlassV2View: UIView {
 
     var frameProvider: (() -> (CGRect))?
 
+    public override init(frame: CGRect) {
+        overlayColorView = UIView()
+        super.init(frame: frame)
+        commonSetup()
+    }
+
     public init(
         backgroundContentProvider: @escaping () -> (UIImage?, CGRect)?,
         frameProvider: (() -> (CGRect))?
@@ -406,7 +439,10 @@ public class LiquidGlassV2View: UIView {
         super.init(frame: .zero)
 
         refractionLayer.backgroundContentProvider = backgroundContentProvider
+        commonSetup()
+    }
 
+    private func commonSetup() {
         backgroundColor = .clear
         isOpaque = false
         clipsToBounds = true
@@ -421,9 +457,24 @@ public class LiquidGlassV2View: UIView {
         overlayColorView.topAnchor.constraint(equalTo: topAnchor).isActive = true
         overlayColorView.bottomAnchor.constraint(equalTo: bottomAnchor).isActive = true
 
+        // Setup content views for LiquidLensView compatibility
+        contentView.isUserInteractionEnabled = false
+        liftedContainerView.isUserInteractionEnabled = false
+        addSubview(contentView)
+        addSubview(liftedContainerView)
+
         setupDisplayLink()
         setupInnerShadow()
         setupStrokeLayer()
+        setupSelectionLens()
+    }
+
+    private func setupSelectionLens() {
+        let lens = UIView()
+        lens.backgroundColor = UIColor.white.withAlphaComponent(0.1)
+        lens.layer.cornerCurve = .continuous
+        insertSubview(lens, at: 0)
+        selectionLensView = lens
     }
 
     required init?(coder: NSCoder) {
@@ -575,6 +626,51 @@ public class LiquidGlassV2View: UIView {
             )
         }
         refractionLayer.shapeCornerRadius = layer.cornerRadius
+
+        // Update content views
+        contentView.frame = bounds
+        liftedContainerView.frame = bounds
+    }
+
+    // MARK: - LiquidLensView Compatibility
+
+    public func update(size: CGSize, selectionX: CGFloat, selectionWidth: CGFloat, isDark: Bool, isLifted: Bool, transition: ComponentTransition) {
+        self.isDarkThemeOverrided = isDark
+        self.selectionParams = (selectionX, selectionWidth, isLifted)
+
+        let cornerRadius = size.height * 0.5
+        layer.cornerRadius = cornerRadius
+
+        // Update selection lens
+        if let lens = selectionLensView {
+            let lensFrame = CGRect(
+                x: max(0, min(selectionX, size.width - selectionWidth)),
+                y: 0,
+                width: selectionWidth,
+                height: size.height
+            )
+
+            let liftedInset: CGFloat = isLifted ? -4.0 : 0.0
+            let effectiveLensFrame = lensFrame.insetBy(dx: liftedInset, dy: liftedInset)
+
+            lens.layer.cornerRadius = effectiveLensFrame.height * 0.5
+            lens.backgroundColor = isDark ? UIColor.white.withAlphaComponent(0.15) : UIColor.black.withAlphaComponent(0.05)
+
+            transition.setFrame(view: lens, frame: effectiveLensFrame)
+            transition.setScale(view: liftedContainerView, scale: isLifted ? 1.15 : 1.0)
+        }
+
+        // Update content views
+        transition.setFrame(view: contentView, frame: CGRect(origin: .zero, size: size))
+        transition.setFrame(view: liftedContainerView, frame: CGRect(origin: .zero, size: size))
+    }
+
+    public var selectionX: CGFloat? {
+        return selectionParams?.x
+    }
+
+    public var selectionWidth: CGFloat? {
+        return selectionParams?.width
     }
 }
 
